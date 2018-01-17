@@ -15,4 +15,9 @@ public class LayimPageController {
     public String index() {
         return "/layim/index";
     }
+
+    @RequestMapping("/mobile")
+    public String mobileIndex() {
+        return "/layim/mobile";
+    }
 }

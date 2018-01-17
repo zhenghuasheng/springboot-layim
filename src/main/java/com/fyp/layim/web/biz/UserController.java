@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
  * @project SpringBootLayIM
  */
 @RestController
-@RequestMapping("/user")
+@RequestMapping({"user","layim/user"})
 public class UserController extends BaseController {
 
     @Autowired

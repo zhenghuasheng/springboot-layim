@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+    <title>lay_im</title>
+    <link rel="stylesheet" href="/js/layui/css/layui.mobile.css"/>
+</head>
+<body>
+<script src="/js/layui/layui.js"></script>
+<script src="/js/socket.js"/>
+<script>
+    /*<![CDATA[*/
+    var initData = {};
+    layui.use(['mobile', 'jquery'], function (mobile,jquery) {
+        jquery.ajax({
+            url:"user/base",
+            async:false,
+            type:"GET",
+            success:function (result,status) {
+                if (status == 'success') {
+                    initData = result.data;
+                }
+            }
+        });
+        var socket = layui.socket;
+        mobile = layui.mobile,layim = mobile.layim;
+        layim.config({
+            //初始化接口
+            init: initData,
+            //上传图片接口
+            uploadImage: {
+                url: '/upload/file' //（返回的数据格式见下文）
+                , type: '' //默认post
+            }
+
+            //上传文件接口
+            , uploadFile: {
+                url: '/upload/file' //（返回的数据格式见下文）
+                , type: '' //默认post
+            },
+
+            isfriend: true,
+            isgroup: true,
+            notice:true
+        });
+
+        socket.config({
+            log: true,
+            server: "ws://10.16.2.17:8888",
+            token:'/user/token',
+            reconn:true
+        });
+
+        socket.on('open', function (e) {
+            console.log("监听到事件：open");
+        });
+        socket.on('close', function (e) {
+            console.log("监听到事件：close");
+        });
+        socket.on('error', function (e) {
+            console.log("监听到事件：error");
+        });
+        socket.on('msg', function (e) {
+            var msg = JSON.parse(e.data);
+
+            var handleStatus=function (msg) {
+                var status ='';
+                if(typeof msg.count !== 'undefined'){
+                    status = msg.count+'人在线';
+                }else{
+                    status = msg.online?'在线':'离线';
+                }
+                layim.setChatStatus('<span style="color:#FF5722;">'+status+'</span>');
+            }
+            console.log(socket.mtype);
+            if (msg.mtype) {
+                switch (msg.mtype) {
+                    case -1:
+                        return console.log(msg.msg);
+                    case socket.mtype.chatFriend:
+                    case socket.mtype.chatGroup:
+                        layim.getMessage(msg);
+                        break;
+                    case socket.mtype.checkIsOnline:
+                    case socket.mtype.checkOnlineCount:
+                        handleStatus(msg);
+                        break;
+                    case socket.mtype.serverNotice:
+                        layim.msgbox(msg.count);
+                        break;
+                }
+            }
+        });
+
+        //监听发送消息
+        layim.on('sendMessage', function (data) {
+            var To = data.to;
+            if (To.type === 'friend') {
+                layim.setChatStatus('<span style="color:#FF5722;">对方正在输入。。。</span>');
+            }
+            var t = data.to.type == 'friend';
+
+            var message = {};
+            message.mtype = (t ? 1 : 2);
+            message.content = data.mine.content;//消息内容
+            message.toid = data.to.id;
+            socket.send(message);
+            return;
+        });
+
+        //监听点击“新的朋友”
+        layim.on('newFriend', function(){
+            //弹出面板
+            layim.panel({
+                title: '添加好友' //标题
+                ,tpl: '<div style="padding: 10px;">自定义模版，{{d.data.test}}</div>' //模版，基于laytpl语法
+                ,data: { //数据
+                    test: '么么哒'
+                }
+            });
+
+            //也可以直接跳转页面，如：
+            //location.href = './newfriend'
+        });
+
+        //监听查看更多记录
+        layim.on('chatlog', function (data) {
+            console.log(data);
+            layer.msg('do something');
+        });
+
+        //监听聊天窗口的切换
+        layim.on('chatChange', function (res) {
+            var t = res.data.type == 'friend';
+            socket.send({
+                mtype: t ? socket.mtype.checkIsOnline : socket.mtype.checkOnlineCount,
+                id: res.data.id
+            });
+        });
+    });
+    /*]]>*/
+</script>
+</body>
+</html>
